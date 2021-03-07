@@ -1,3 +1,5 @@
+#define STRINGIFY(A) #A
+
 #include "ofxShader.h"
 
 ofxShader::ofxShader() {
@@ -172,24 +174,76 @@ bool ofxShader::load(const string &_vertName, const string &_fragName, const str
     #endif
 
     if (vertexSrc.size() == 0) {
-        vertexSrc = "\n\
-uniform mat4    modelViewProjectionMatrix;\n\
-\n\
-attribute vec4  position;\n\
-attribute vec4  color;\n\
-attribute vec2  texcoord;\n\
-\n\
-varying vec4    v_position;\n\
-varying vec4    v_color;\n\
-varying vec2    v_texcoord;\n\
-\n\
-void main() {\n\
-    v_position  = position;\n\
-    v_color = color;\n\
-    v_texcoord  = texcoord;\n\
-    gl_Position = modelViewProjectionMatrix * v_position;\n\
-}\n";
+        
+#ifdef TARGET_OPENGLES
+//        GLSL 100
+        
+        vertexSrc = STRINGIFY(
+            uniform mat4    modelViewProjectionMatrix;
+            
+            attribute vec4  position;
+            attribute vec4  color;
+            attribute vec2  texcoord;
+            
+            varying vec4    v_position;
+            varying vec4    v_color;
+            varying vec2    v_texcoord;
+            
+            void main() {
+                v_position  = position;
+                v_color = color;
+                v_texcoord  = texcoord;
+                gl_Position = modelViewProjectionMatrix * position;
+            }
+        );
+#else
+//        GLSL 120
+        if ( !ofIsGLProgrammableRenderer() ) {
+            
+            
+            vertexSrc = STRINGIFY( 
+    
+                varying vec4    v_position;
+                varying vec4    v_color;
+                varying vec2    v_texcoord;
+                
+                void main() {
+                    gl_FrontColor =  gl_Color;
+                    gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;
+                    v_position = gl_Position;
+                    v_color = gl_Color;
+                    v_texcoord = vec2(gl_TextureMatrix[0]*gl_MultiTexCoord0);
+                }
+            );
+            
+            
+        } else {
+//        GLSL 150
+            
+            vertexSrc = STRINGIFY(
+                uniform mat4    modelViewProjectionMatrix;
+                
+                attribute vec4  position;
+                attribute vec4  color;
+                attribute vec2  texcoord;
+                
+                varying vec4    v_position;
+                varying vec4    v_color;
+                varying vec2    v_texcoord;
+                
+                void main() {
+                    v_position  = position;
+                    v_color = color;
+                    v_texcoord  = texcoord;
+                    gl_Position = modelViewProjectionMatrix * position;
+                }
+            );
+            
+        }
+#endif
     }
+    
+//#extension GL_ARB_texture_rectangle : enable
     
     // 2. Add defines
     string defines_header = "";
@@ -261,22 +315,31 @@ out vec4 fragColor;\n";
     }
         
     if ( vertexSrc.size() > 0 ) {
+        ofLogVerbose("") << "---------------------------";
+        ofLogVerbose("ofxShader") << "GL_VERTEX_SHADER\n\n" << version_vert_header << defines_header << vertexSrc;
+        ofLogVerbose("") << "---------------------------";
         setupShaderFromSource( GL_VERTEX_SHADER, version_vert_header + defines_header + vertexSrc );
     }
 
     if ( fragmentSrc.size() > 0 ) {
+        ofLogVerbose("") << "---------------------------";
+        ofLogVerbose("ofxShader") << "GL_FRAGMENT_SHADER\n\n" << version_frag_header << defines_header << fragmentSrc;
+        ofLogVerbose("") << "---------------------------";
         setupShaderFromSource( GL_FRAGMENT_SHADER, version_frag_header + defines_header + fragmentSrc );
     }
     
 
     #ifndef TARGET_OPENGLES
     if ( geometrySrc.size() > 0 ) {
+        ofLogVerbose("") << "---------------------------";
+        ofLogVerbose("ofxShader") << "GL_GEOMETRY_SHADER_EXT\n\n" << version_geom_header << defines_header << geometrySrc;
+        ofLogVerbose("") << "---------------------------";
         setupShaderFromSource( GL_GEOMETRY_SHADER_EXT, version_geom_header + defines_header + geometrySrc );
     }
     #endif
 
     bindDefaults();
-        
+    
     bool link = linkProgram();
     ofNotifyEvent(onLoad, link);//, this);
     return link;;
