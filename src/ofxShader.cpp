@@ -314,18 +314,19 @@ out vec4 fragColor;\n";
 #endif
     }
         
+    bool setup = true;
     if ( vertexSrc.size() > 0 ) {
         ofLogVerbose("") << "---------------------------";
         ofLogVerbose("ofxShader") << "GL_VERTEX_SHADER\n\n" << version_vert_header << defines_header << vertexSrc;
         ofLogVerbose("") << "---------------------------";
-        setupShaderFromSource( GL_VERTEX_SHADER, version_vert_header + defines_header + vertexSrc );
+        setup &= setupShaderFromSource( GL_VERTEX_SHADER, version_vert_header + defines_header + vertexSrc );
     }
 
     if ( fragmentSrc.size() > 0 ) {
         ofLogVerbose("") << "---------------------------";
         ofLogVerbose("ofxShader") << "GL_FRAGMENT_SHADER\n\n" << version_frag_header << defines_header << fragmentSrc;
         ofLogVerbose("") << "---------------------------";
-        setupShaderFromSource( GL_FRAGMENT_SHADER, version_frag_header + defines_header + fragmentSrc );
+        setup &= setupShaderFromSource( GL_FRAGMENT_SHADER, version_frag_header + defines_header + fragmentSrc );
     }
     
 
@@ -334,17 +335,26 @@ out vec4 fragColor;\n";
         ofLogVerbose("") << "---------------------------";
         ofLogVerbose("ofxShader") << "GL_GEOMETRY_SHADER_EXT\n\n" << version_geom_header << defines_header << geometrySrc;
         ofLogVerbose("") << "---------------------------";
-        setupShaderFromSource( GL_GEOMETRY_SHADER_EXT, version_geom_header + defines_header + geometrySrc );
+        setup &= setupShaderFromSource( GL_GEOMETRY_SHADER_EXT, version_geom_header + defines_header + geometrySrc );
     }
     #endif
 
     bindDefaults();
     
     bool link = linkProgram();
-    ofNotifyEvent(onLoad, link);//, this);
+    link &= setup;
+    ofNotifyEvent(onLoad, link); //, this);
     return link;;
 }
 
+
+void ofxShader::addUniformFunction(string uniformName, UniformFunction uniformFunction) {
+    m_uniformsFunctions[uniformName] = uniformFunction;
+}
+
+void ofxShader::removeUniformFunction(string uniformName) {
+    m_uniformsFunctions.erase(uniformName);
+}
 std::string ofxShader::getFilename(GLenum _type) {
     switch (_type) {
         case GL_FRAGMENT_SHADER:
